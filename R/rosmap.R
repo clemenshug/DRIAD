@@ -14,7 +14,7 @@ wrangleROSMAP <- function( destDir = "~/data/amp-ad/rosmap" )
     cat( "Wrangling ROS/MAP dataset to", destDir, "\n" )
 
     syn <- function(s) {synapser::synGet(s, downloadLocation=synDir)$path}
-    
+
     ## Login to Synapse and download/wrangle data
     cat( "Logging in to Synapse... " )
     synapser::synLogin()
@@ -52,6 +52,7 @@ wrangleROSMAP <- function( destDir = "~/data/amp-ad/rosmap" )
     cat( "Matching sample and individual IDs...\n" )
     XZ <- readr::read_csv(syn("syn3382527"), col_types=readr::cols()) %>%
         dplyr::select( projid, rnaseq_id ) %>% na.omit %>%
+        dplyr::mutate( across( projid, as.character ) ) %>%
         dplyr::distinct() %>% dplyr::inner_join( XX, ., by="rnaseq_id" )
 
     ## Match expression data up against the following clinical covariates:
