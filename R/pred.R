@@ -98,7 +98,7 @@ oforest <- function( X, y, vTest )
     validatePredInputs( X, y, vTest )
 
     ## Convert response to ordered factor
-    y01 <- factor( y, levels = as.character(seq(0, 6)) )
+    y01 <- factor( y, levels = as.character(seq(0, 6)), ordered = TRUE )
 
     ## Split the data into train and test
     vTrain <- setdiff( rownames(X), vTest )
@@ -114,4 +114,31 @@ oforest <- function( X, y, vTest )
     dfs$test %>%
         tibble::as_tibble( rownames = "ID" ) %>%
         transmute( ID, Label, Pred = preds$ypred )
+}
+
+onet <- function( X, y, vTest )
+{
+    validatePredInputs( X, y, vTest )
+
+    ## Convert response to ordered factor
+    y01 <- factor( y, levels = as.character(seq(0, 6)), ordered = TRUE )
+
+    XX <- X %>% t() %>% cov()
+
+    ## Split the data into train and test
+    vTrain <- setdiff( rownames(XX), vTest )
+    Xte <- XX[vTest,]
+    Xtr <- XX[vTrain,]
+    ytr <- y01[vTrain]
+
+    ## Train a model and apply it to test data
+    mdl <- ordinalNet::ordinalNet(
+        Xtr, ytr, alpha = 0, threshIn = 1e-5, threshOut = 1e-5,
+        keepTrainingData = FALSE
+    )
+    preds <- predict(mdl, Xte, type = "class")
+
+    tibble(
+        ID = vTest, Label = y01[vTest], Pred = preds
+    )
 }

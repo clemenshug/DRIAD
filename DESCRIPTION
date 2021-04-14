@@ -15,5 +15,6 @@ Imports:
     LiblineaR,
     xgboost,
     nnet,
-    ordinalForest
+    ordinalForest,
+    ordinalNet
 RoxygenNote: 7.1.0
