@@ -4,7 +4,7 @@ validatePredInputs <- function( X, y, vTest )
     stopifnot( is.matrix(X) )
     stopifnot( all(names(y) == rownames(X)) )
     stopifnot( all(vTest %in% rownames(X)) )
-    stopifnot( all(sort(unique(y)) == c("neg","pos")) )
+    stopifnot( length(setdiff(XY$Label, c("neg","pos", as.character(seq(0, 6))))) == 0 )
 }
 
 ## Train-test for a single pair using logistic regression
@@ -15,7 +15,7 @@ validatePredInputs <- function( X, y, vTest )
 liblinear_lgr <- function( X, y, vTest )
 {
     validatePredInputs( X, y, vTest )
-    
+
     ## Split the data into train and test
     vTrain <- setdiff( rownames(X), vTest )
     Xte <- X[vTest,]
@@ -48,7 +48,7 @@ liblinear_svm <- function( X, y, vTest )
     p <- predict( m, Xte, decisionValues=TRUE )
     ypred <- `if`( !identical(p$decisionValues[,"pos"], c(0,0)),
                   p$decisionValues[,"pos"],
-                  -p$decisionValues[,"neg"] ) 
+                  -p$decisionValues[,"neg"] )
     tibble::enframe( y[vTest], "ID", "Label" ) %>% dplyr::mutate( Pred = ypred )
 }
 
@@ -58,7 +58,7 @@ xgboost <- function( X, y, vTest )
 
     ## Convert response to 0,1
     y01 <- ifelse( y == "pos", 1, 0 )
-    
+
     ## Split the data into train and test
     vTrain <- setdiff( rownames(X), vTest )
     Xte <- X[vTest,]
@@ -66,7 +66,7 @@ xgboost <- function( X, y, vTest )
     ytr <- y01[vTrain]
 
     mdl <- xgboost::xgboost( Xtr, ytr, nrounds=20, verbose=0 )
-    
+
     ## Train a model and apply it to test data
     ypred <- predict( mdl, Xte )
     tibble::enframe( y[vTest], "ID", "Label" ) %>% dplyr::mutate( Pred = ypred )
@@ -78,7 +78,7 @@ nnet <- function( X, y, vTest )
 
     ## Convert response to 0,1
     y01 <- ifelse( y == "pos", 1, 0 )
-    
+
     ## Split the data into train and test
     vTrain <- setdiff( rownames(X), vTest )
     Xte <- X[vTest,]
@@ -86,9 +86,32 @@ nnet <- function( X, y, vTest )
     ytr <- y01[vTrain]
 
     mdl <- purrr::quietly(nnet::nnet)( Xtr, ytr, size=2, MaxNWts=10000 )$result
-    
+
     ## Train a model and apply it to test data
     ypred <- predict( mdl, Xte ) %>% as.data.frame %>%
         tibble::rownames_to_column("ID") %>% dplyr::rename( Pred = V1 )
     tibble::enframe( y[vTest], "ID", "Label" ) %>% dplyr::inner_join(ypred, by="ID")
+}
+
+oforest <- function( X, y, vTest )
+{
+    validatePredInputs( X, y, vTest )
+
+    ## Convert response to ordered factor
+    y01 <- factor( y, levels = as.character(seq(0, 6)) )
+
+    ## Split the data into train and test
+    vTrain <- setdiff( rownames(X), vTest )
+    dfs <- X %>%
+        as.data.frame() %>%
+        dplyr::mutate( Label = y01 ) %>%
+        split( if_else(rownames(.) %in% vTest, "test", "train") )
+
+    mdl <- ordinalForest::ordfor( depvar = "Label", data = dfs$train )
+
+    preds <- predict(mdl, newdata = dfs$test)
+
+    dfs$test %>%
+        tibble::as_tibble( rownames = "ID" ) %>%
+        transmute( ID, Label, Pred = preds$ypred )
 }
