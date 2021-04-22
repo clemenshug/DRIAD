@@ -127,8 +127,8 @@ onet <- function( X, y, vTest )
 
     ## Split the data into train and test
     vTrain <- setdiff( rownames(XX), vTest )
-    Xte <- XX[vTest,]
-    Xtr <- XX[vTrain,]
+    Xte <- XX[vTest, vTrain]
+    Xtr <- XX[vTrain, vTrain]
     ytr <- y01[vTrain]
 
     ## Train a model and apply it to test data
@@ -136,9 +136,14 @@ onet <- function( X, y, vTest )
         Xtr, ytr, alpha = 0, threshIn = 1e-5, threshOut = 1e-5,
         keepTrainingData = FALSE
     )
-    preds <- predict(mdl, Xte, type = "class")
+    preds <- predict(mdl, Xte, type = "response")
+
+    # Encoding order of pair so that correct ordering is c(1, 2)
+    # and incorrect is c(2, 1). Ties are c(1, 1)
+    ytrue <- match(y01[vTest], sort(y01[vTest]))
+    ypred <- match(preds[, "P[Y=7]"], sort(preds[, "P[Y=7]"]))
 
     tibble(
-        ID = vTest, Label = y01[vTest], Pred = preds
+        ID = vTest, Label = ytrue, Pred = ypred
     )
 }
