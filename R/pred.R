@@ -4,7 +4,7 @@ validatePredInputs <- function( X, y, vTest )
     stopifnot( is.matrix(X) )
     stopifnot( all(names(y) == rownames(X)) )
     stopifnot( all(vTest %in% rownames(X)) )
-    stopifnot( length(setdiff(XY$Label, c("neg","pos", as.character(seq(0, 6))))) == 0 )
+    stopifnot( length(setdiff(y, c("neg","pos", as.character(seq(0, 6))))) == 0 )
 }
 
 ## Train-test for a single pair using logistic regression
