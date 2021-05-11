@@ -16,5 +16,9 @@ Imports:
     xgboost,
     nnet,
     ordinalForest,
-    ordinalNet
-RoxygenNote: 7.1.0
+    ordinalNet,
+    ordinalRidge (>= 0.0.0.9000),
+    magrittr
+RoxygenNote: 7.1.1
+Remotes: 
+    artemsokolov/ordinalridge

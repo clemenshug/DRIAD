@@ -85,11 +85,11 @@ reduceToGenes <- function( gs, X )
 ## Leave pair out cross-validation for a given dataset
 ## XY - dataset must contain columns ID (denoting sample identifiers) and Label
 ## lPairs - list of vectors-of-length-2 specifying IDs to withhold
-## method - one of {"lgr", "svm", "xgb", "nn", "of", "on"}
+## method - one of {"lgr", "svm", "xgb", "nn", "of", "on", "or"}
 lpocv <- function( XY, lPairs, method="lgr" )
 {
-    if( !(method %in% c("lgr", "svm", "xgb", "nn", "of", "on")) )
-        stop( "method must be one of lgr, svm, xgb, nn", "of", "on" )
+    if( !(method %in% c("lgr", "svm", "xgb", "nn", "of", "on", "or")) )
+        stop( "method must be one of lgr, svm, xgb, nn", "of", "on", "or" )
 
     ## Computes AUC from LPOCV
     ## hi - prediction values associated with high-label example in the pair
@@ -106,7 +106,7 @@ lpocv <- function( XY, lPairs, method="lgr" )
     ## Ensure that labels are correct for chosen method
     stopifnot(
         setequal(XY$Label, c("A", "B")) || (
-            setequal(XY$Label, as.character(seq(0, 6))) && method %in% c("of", "on")
+            setequal(XY$Label, as.character(seq(0, 6))) && method %in% c("of", "on", "or")
         )
     )
 
@@ -115,30 +115,28 @@ lpocv <- function( XY, lPairs, method="lgr" )
         dplyr::select( -Label ) %>% as.matrix
     y <- with( XY, rlang::set_names(Label, ID) )
 
+    train_funs <- list(
+      lgr = liblinear_lgr, svm = liblinear_svm, xgb = xgboost,
+      nn = nnet, of = oforest, on = onet, or = oridge
+    )
+    train_fun <- train_funs[[method]]
+
     ## Traverse the pairs and perform cross-validation
-    if( method == "lgr" ) {
-        RR <- purrr::map( lPairs, ~liblinear_lgr(X, y, .x) )
-    } else if( method == "svm" ) {
-        RR <- purrr::map( lPairs, ~liblinear_svm(X, y, .x) )
-    } else if( method == "xgb" ) {
-        RR <- purrr::map( lPairs, ~xgboost(X, y, .x) )
-    } else if( method == "nn" ) {
-        RR <- purrr::map( lPairs, ~nnet(X, y, .x) )
-    } else if ( method == "of" ) {
-        RR <- purrr::map( lPairs, ~oforest(X, y, .x) )
-    } else {
-        RR <- purrr::map( lPairs, ~onet(X, y, .x) )
-    }
+    RR <- purrr::map( lPairs, ~train_fun(X, y, .x) )
 
     ## Compute AUC
-    RR %>%
-      purrr::map(
-        ~dplyr::transmute(
-          .x, Pred, Label = if_else(Label == min(Label), "lo", "hi")
-        )
-      ) %>%
-      dplyr::bind_rows( .id="index" ) %>%
-      tidyr::spread( Label, Pred ) %>% with( AUC_LPOCV(hi, lo) )
+    purrr::map(
+      RR,
+      ~dplyr::mutate(
+        .x,
+        Label = if ( !setequal(Label, c("pos", "neg")) )
+          dplyr::if_else(Label == min(Label), "neg", "pos")
+        else
+          Label
+      )
+    ) %>%
+      dplyr::bind_rows( .id="index" ) %>% dplyr::select( -ID ) %>%
+      tidyr::spread( Label, Pred ) %>% with( AUC_LPOCV(pos, neg) )
 }
 
 ## Given a dataset and a gene set of interest, generates background sets of equal size
@@ -250,4 +248,3 @@ read_gmt <- function( fn, iName=1 )
         rlang::set_names( purrr::map_chr(., dplyr::nth, iName) ) %>%
         purrr::map( ~.x[-2:-1] )
 }
-

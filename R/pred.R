@@ -105,7 +105,7 @@ oforest <- function( X, y, vTest )
     dfs <- X %>%
         as.data.frame() %>%
         dplyr::mutate( Label = y01 ) %>%
-        split( if_else(rownames(.) %in% vTest, "test", "train") )
+        split( dplyr::if_else(rownames(.) %in% vTest, "test", "train") )
 
     mdl <- ordinalForest::ordfor( depvar = "Label", data = dfs$train )
 
@@ -113,7 +113,7 @@ oforest <- function( X, y, vTest )
 
     dfs$test %>%
         tibble::as_tibble( rownames = "ID" ) %>%
-        transmute( ID, Label, Pred = preds$ypred )
+        dplyr::transmute( ID, Label, Pred = preds$classprobs[, 7] )
 }
 
 onet <- function( X, y, vTest )
@@ -138,12 +138,36 @@ onet <- function( X, y, vTest )
     )
     preds <- predict(mdl, Xte, type = "response")
 
-    # Encoding order of pair so that correct ordering is c(1, 2)
-    # and incorrect is c(2, 1). Ties are c(1, 1)
-    ytrue <- match(y01[vTest], sort(y01[vTest]))
-    ypred <- match(preds[, "P[Y=7]"], sort(preds[, "P[Y=7]"]))
+    tibble::tibble(
+        ID = vTest, Label = y01[vTest], Pred = preds[, "P[Y=7]"]
+    )
+}
 
-    tibble(
-        ID = vTest, Label = ytrue, Pred = ypred
+oridge <- function( X, y, vTest )
+{
+    validatePredInputs( X, y, vTest )
+
+    ## Convert response to ordered factor
+    y01 <- factor( y, levels = as.character(seq(0, 6)), ordered = TRUE )
+
+    ## Split the data into train and test
+    vTrain <- setdiff( rownames(X), vTest )
+    Xtr <- X[vTrain, ]
+    Xte <- X[vTest, ]
+    ytr <- y01[vTrain]
+
+    ## Compute the linear kernel matrix on training data
+    Ktr <- cov(t(Xtr))
+
+    ## Compute a linear kernel between training and test points
+    Kte <- cov(t(Xte), t(Xtr))
+
+    ## Train an ordinal regression model
+    mdl <- ordinalRidge::ordinalRidge(Ktr, ytr, eps=1e-04, verbose=FALSE)
+
+    pred <- predict(mdl, Kte)
+
+    tibble::tibble(
+        ID = vTest, Label = y01[vTest], Pred = pred$prob[, "Pr[y >= 6]"]
     )
 }

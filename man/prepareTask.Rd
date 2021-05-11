@@ -2,14 +2,16 @@
 % Please edit documentation in R/lpocv.R
 \name{prepareTask}
 \alias{prepareTask}
-\title{Generate a binary prediction task}
+\title{Generate a prediction task}
 \usage{
 prepareTask(fn, task)
 }
 \arguments{
 \item{fn}{Filename of a dataset wrangled by wrangleROSMAP() or wrangleMSBB()}
 
-\item{task}{One of {"AB", "AC", "BC"}, specifying the binary task of interest}
+\item{task}{One of {"AB", "AC", "BC", "all"}, specifying the task of interest,
+the first three options are generating binary prediction tasks whereas "all"
+returns all stages from 0 to 6 suitable for ordinal regression}
 }
 \description{
 Loads a previously-wrangled dataset and composes a binary prediction task
