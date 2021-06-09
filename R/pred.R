@@ -156,16 +156,10 @@ oridge <- function( X, y, vTest )
     Xte <- X[vTest, ]
     ytr <- y01[vTrain]
 
-    ## Compute the linear kernel matrix on training data
-    Ktr <- cov(t(Xtr))
-
-    ## Compute a linear kernel between training and test points
-    Kte <- cov(t(Xte), t(Xtr))
-
     ## Train an ordinal regression model
-    mdl <- ordinalRidge::ordinalRidge(Ktr, ytr, eps=1e-04, verbose=FALSE)
+    mdl <- ordinalRidge::ordinalRidge(Xtr, ytr, eps=1e-04, verbose=FALSE)
 
-    pred <- predict(mdl, Kte)
+    pred <- predict(mdl, Xte)
 
     tibble::tibble(
         ID = vTest, Label = y01[vTest], Pred = pred$prob[, "Pr[y >= 6]"]
