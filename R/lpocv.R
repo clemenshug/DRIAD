@@ -3,7 +3,7 @@
 #' Loads a previously-wrangled dataset and composes a binary prediction task
 #'
 #' @param fn Filename of a dataset wrangled by wrangleROSMAP() or wrangleMSBB()
-#' @param task One of {"AB", "AC", "BC", "all"}, specifying the task of interest,
+#' @param task One of {"AB", "AC", "BC", "all", "all_pooled"}, specifying the task of interest,
 #'  the first three options are generating binary prediction tasks whereas "all"
 #'  returns all stages from 0 to 6 suitable for ordinal regression
 #' @importFrom magrittr %>%
@@ -21,7 +21,8 @@ prepareTask <- function( fn, task )
         AB = c("neg", "neg", "neg", "pos", "pos", NA, NA),
         AC = c("neg", "neg", "neg", NA, NA, "pos", "pos"),
         BC = c(NA, NA, NA, "neg", "neg", "pos", "pos"),
-        all = as.character(seq(0, 6))
+        all = as.character(seq(0, 6)),
+        all_pooled = c("0", "0", "0", "1", "1", "2", "2")
     )
 
     ## Argument verification
@@ -106,7 +107,7 @@ lpocv <- function( XY, lPairs, method="lgr" )
     ## Ensure that labels are correct for chosen method
     stopifnot(
         setequal(XY$Label, c("A", "B")) || (
-            setequal(XY$Label, as.character(seq(0, 6))) && method %in% c("of", "on", "or")
+            length(setdiff(XY$Label, as.character(seq(0, 6)))) == 0 && method %in% c("of", "on", "or")
         )
     )
 

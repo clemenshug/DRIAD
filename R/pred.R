@@ -113,7 +113,7 @@ oforest <- function( X, y, vTest )
 
     dfs$test %>%
         tibble::as_tibble( rownames = "ID" ) %>%
-        dplyr::transmute( ID, Label, Pred = preds$classprobs[, 7] )
+        dplyr::transmute( ID, Label, Pred = preds$classprobs[, ncol(preds$classprobs)] )
 }
 
 onet <- function( X, y, vTest )
@@ -121,7 +121,7 @@ onet <- function( X, y, vTest )
     validatePredInputs( X, y, vTest )
 
     ## Convert response to ordered factor
-    y01 <- factor( y, levels = as.character(seq(0, 6)), ordered = TRUE )
+    y01 <- forcats::fct_inseq( y, ordered = TRUE )
 
     XX <- X %>% t() %>% cov()
 
@@ -139,7 +139,7 @@ onet <- function( X, y, vTest )
     preds <- predict(mdl, Xte, type = "response")
 
     tibble::tibble(
-        ID = vTest, Label = y01[vTest], Pred = preds[, "P[Y=7]"]
+        ID = vTest, Label = y01[vTest], Pred = preds[, ncol(preds)]
     )
 }
 
@@ -148,7 +148,7 @@ oridge <- function( X, y, vTest )
     validatePredInputs( X, y, vTest )
 
     ## Convert response to ordered factor
-    y01 <- factor( y, levels = as.character(seq(0, 6)), ordered = TRUE )
+    y01 <- forcats::fct_inseq( y, ordered = TRUE )
 
     ## Split the data into train and test
     vTrain <- setdiff( rownames(X), vTest )
@@ -162,6 +162,6 @@ oridge <- function( X, y, vTest )
     pred <- predict(mdl, Xte)
 
     tibble::tibble(
-        ID = vTest, Label = y01[vTest], Pred = pred$prob[, "Pr[y >= 6]"]
+        ID = vTest, Label = y01[vTest], Pred = pred$score
     )
 }
