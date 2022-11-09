@@ -225,7 +225,7 @@ evalGeneSets <- function( lGSI, XY, lP, nBK=0, method="lgr", rs=100 )
     names(lGSI) <- purrr::map2( names(lGSI), vn, ~`if`(.x=="",.y,.x) )
 
     ## Evaluate individual gene sets and combine results into a single data frame
-    fo <- furrr::future_options( seed=TRUE )
+    fo <- furrr::furrr_options( seed=TRUE )
     R <- furrr::future_map( lGSI, evalGeneSet, XY, lP, nBK, method, .options=fo ) %>%
         purrr::map( summarizeBK ) %>% dplyr::bind_rows( .id = "Set" )
 
