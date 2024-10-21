@@ -1,10 +1,14 @@
-validatePredInputs <- function( X, y, vTest )
+validatePredInputs <- function( X, y, vTest, ordered = FALSE )
 {
     ## Argument verification
     stopifnot( is.matrix(X) )
     stopifnot( all(names(y) == rownames(X)) )
     stopifnot( all(vTest %in% rownames(X)) )
-    stopifnot( length(setdiff(y, c("neg","pos", as.character(seq(0, 6))))) == 0 )
+    if (ordered) {
+        stopifnot( is.factor(y) )
+    } else {
+        stopifnot( length(setdiff(y, c("neg","pos"))) == 0 )
+    }
 }
 
 ## Train-test for a single pair using logistic regression
@@ -95,16 +99,13 @@ nnet <- function( X, y, vTest )
 
 oforest <- function( X, y, vTest )
 {
-    validatePredInputs( X, y, vTest )
-
-    ## Convert response to ordered factor
-    y01 <- factor( y, levels = as.character(seq(0, 6)), ordered = TRUE )
+    validatePredInputs( X, y, vTest, ordered = TRUE )
 
     ## Split the data into train and test
     vTrain <- setdiff( rownames(X), vTest )
     dfs <- X %>%
         as.data.frame() %>%
-        dplyr::mutate( Label = y01 ) %>%
+        dplyr::mutate( Label = y ) %>%
         split( dplyr::if_else(rownames(.) %in% vTest, "test", "train") )
 
     mdl <- ordinalForest::ordfor( depvar = "Label", data = dfs$train )
@@ -118,10 +119,7 @@ oforest <- function( X, y, vTest )
 
 onet <- function( X, y, vTest )
 {
-    validatePredInputs( X, y, vTest )
-
-    ## Convert response to ordered factor
-    y01 <- forcats::fct_inseq( y, ordered = TRUE )
+    validatePredInputs( X, y, vTest, ordered = TRUE )
 
     XX <- X %>% t() %>% cov()
 
@@ -129,7 +127,7 @@ onet <- function( X, y, vTest )
     vTrain <- setdiff( rownames(XX), vTest )
     Xte <- XX[vTest, vTrain]
     Xtr <- XX[vTrain, vTrain]
-    ytr <- y01[vTrain]
+    ytr <- y[vTrain]
 
     ## Train a model and apply it to test data
     mdl <- ordinalNet::ordinalNet(
@@ -139,22 +137,19 @@ onet <- function( X, y, vTest )
     preds <- predict(mdl, Xte, type = "response")
 
     tibble::tibble(
-        ID = vTest, Label = y01[vTest], Pred = preds[, ncol(preds)]
+        ID = vTest, Label = y[vTest], Pred = preds[, ncol(preds)]
     )
 }
 
 oridge <- function( X, y, vTest )
 {
-    validatePredInputs( X, y, vTest )
-
-    ## Convert response to ordered factor
-    y01 <- forcats::fct_inseq( y, ordered = TRUE )
+    validatePredInputs( X, y, vTest, ordered = TRUE )
 
     ## Split the data into train and test
     vTrain <- setdiff( rownames(X), vTest )
     Xtr <- X[vTrain, ]
     Xte <- X[vTest, ]
-    ytr <- y01[vTrain]
+    ytr <- y[vTrain]
 
     ## Train an ordinal regression model
     mdl <- ordinalRidge::ordinalRidge(Xtr, ytr, eps=1e-04, verbose=FALSE)
@@ -162,6 +157,6 @@ oridge <- function( X, y, vTest )
     pred <- predict(mdl, Xte)
 
     tibble::tibble(
-        ID = vTest, Label = y01[vTest], Pred = pred$score
+        ID = vTest, Label = y[vTest], Pred = pred$score
     )
 }
